@@ -1090,6 +1090,49 @@
     el.style.setProperty('--my', (e.clientY - r.top) + 'px');
   }, { passive: true });
 
+  /* ══════════════ Theme switcher ══════════════ */
+  const LS_THEME = 'notes_theme_v1';
+  function getAccentRgb()  { return getComputedStyle(document.documentElement).getPropertyValue('--accent-rgb').trim() || '79,216,255'; }
+  function getAccent2Rgb() { return getComputedStyle(document.documentElement).getPropertyValue('--accent-2-rgb').trim() || '181,140,255'; }
+
+  function applyTheme(theme, refreshParticles) {
+    if (theme) document.documentElement.setAttribute('data-theme', theme);
+    else document.documentElement.removeAttribute('data-theme');
+    document.querySelectorAll('.theme-swatch').forEach(el => {
+      el.classList.toggle('active', el.dataset.theme === (theme || ''));
+    });
+    if (refreshParticles && typeof window.__refreshBgParticles === 'function') {
+      window.__refreshBgParticles();
+    }
+  }
+
+  function initThemeSwitcher() {
+    const saved = lsGet(LS_THEME) || '';
+    applyTheme(saved, false);
+
+    const wrap  = document.getElementById('theme-wrap');
+    const btn   = document.getElementById('theme-btn');
+    const panel = document.getElementById('theme-panel');
+
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      panel.classList.toggle('open');
+    });
+    document.addEventListener('click', e => {
+      if (!wrap.contains(e.target)) panel.classList.remove('open');
+    });
+    panel.querySelectorAll('.theme-swatch').forEach(el => {
+      el.addEventListener('click', () => {
+        const theme = el.dataset.theme;
+        applyTheme(theme, true);
+        lsSet(LS_THEME, theme);
+        panel.classList.remove('open');
+        showToast(`Theme: ${el.querySelector('.theme-swatch-name').textContent}`);
+      });
+    });
+  }
+  initThemeSwitcher();
+
   /* ══════════════ Ambient constellation background ══════════════ */
   (function initBgCanvas() {
     const canvas = document.getElementById('bg-canvas');
@@ -1108,7 +1151,7 @@
         x: Math.random() * w, y: Math.random() * h,
         vx: (Math.random() - 0.5) * 0.18, vy: (Math.random() - 0.5) * 0.18,
         r: Math.random() * 1.4 + 0.6,
-        hue: Math.random() > 0.5 ? '79,216,255' : '181,140,255',
+        hue: Math.random() > 0.5 ? getAccentRgb() : getAccent2Rgb(),
       }));
     }
 
@@ -1125,7 +1168,7 @@
           const dx = a.x - b.x, dy = a.y - b.y;
           const dist = Math.sqrt(dx*dx + dy*dy);
           if (dist < 120) {
-            ctx.strokeStyle = `rgba(120,160,255,${0.10 * (1 - dist/120)})`;
+            ctx.strokeStyle = `rgba(${getAccentRgb()},${0.10 * (1 - dist/120)})`;
             ctx.lineWidth = 0.6;
             ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
           }
@@ -1141,6 +1184,7 @@
     }
 
     window.addEventListener('resize', resize);
+    window.__refreshBgParticles = resize;
     resize();
     if (!reduceMotion) requestAnimationFrame(step);
     else step(); // draw a single static frame
